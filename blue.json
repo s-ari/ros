@@ -1,0 +1,231 @@
+{
+  "ROSTemplateFormatVersion": "2015-09-01",
+  "Description": "Create VPC ECS instance",
+  "Parameters": {
+    "ImageId": {
+      "Type": "String",
+      "Description": "ECS Image",
+      "Label": "ECS Image",
+      "Default": "m-6wef2xeobddwt2bb5es8"
+    },
+    "KeyPairName": {
+      "Type": "String",
+      "Description": "Key Pair Name",
+      "Label": "ECS Key Pair Name",
+      "Default": "id_rsa.pub"
+    },
+    "InstanceType": {
+      "Type": "String",
+      "Description": "ECS Instance Type",
+      "AllowedValues": [
+        "ecs.n1.medium",
+        "ecs.n1.large",
+        "ecs.n2.medium",
+        "ecs.n2.large",
+        "ecs.n4.large",
+        "ecs.n4.xlarge",
+        "ecs.mn4.large",
+        "ecs.mn4.xlarge",
+        "ecs.e4.large",
+        "ecs.cm4.xlarge",
+        "ecs.ce4.xlarge",
+        "ecs.c4.xlarge"
+      ],
+      "Label": "ECS Instance Type",
+      "Default": "ecs.n4.large"
+    },
+    "PublicIP": {
+      "Type": "Boolean",
+      "Description": "Allocate Public IP or Not",
+      "Label": "Allocate Public IP or Not",
+      "Default": true
+    },
+    "AddressType": {
+      "AllowedValues": [
+        "internet",
+        "intranet"
+      ],
+      "Default": "internet",
+      "Description": "Load balancer address type",
+      "Type": "String"
+    },
+    "Bandwidth": {
+      "Default": 1,
+      "Description": "Specify the peak bandwidth of public internet type instance, if PayByBandwidth is selected. The unit is Mbps.",
+      "MaxValue": 1000,
+      "MinValue": 1,
+      "Type": "Number"
+    },
+    "SLB_InternetChargeType": {
+      "AllowedValues": [
+        "paybybandwidth",
+        "paybytraffic"
+      ],
+      "Default": "paybytraffic",
+      "Description": "The charge type of public internet SLB instance",
+      "Type": "String"
+    }
+  },
+  "Resources": {
+    "Vpc": {
+      "Type": "ALIYUN::ECS::VPC",
+      "Properties": {
+        "CidrBlock": "10.0.0.0/16",
+        "VpcName": "RosVpc"
+      }
+    },
+    "Vswitch": {
+      "Type": "ALIYUN::ECS::VSwitch",
+      "Properties": {
+        "VpcId": {
+          "Ref": "Vpc"
+        },
+        "ZoneId": {
+          "Fn::Select": [
+            "0",
+            {
+              "Fn::GetAZs": {
+                "Ref": "ALIYUN::Region"
+              }
+            }
+          ]
+        },
+        "CidrBlock": "10.0.0.0/24"
+      }
+    },
+    "Ecs": {
+      "Type": "ALIYUN::ECS::Instance",
+      "Properties": {
+        "IoOptimized": "optimized",
+        "PrivateIpAddress": "10.0.0.1",
+        "KeyPairName": {
+	  "Ref": "KeyPairName"
+	},
+        "HostName": "blue",
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "blue"
+          }
+        ],
+        "VpcId": {
+          "Ref": "Vpc"
+        },
+        "SecurityGroupId": {
+          "Ref": "Sg"
+        },
+        "VSwitchId": {
+          "Ref": "Vswitch"
+        },
+        "ImageId": {
+          "Ref": "ImageId"
+        },
+        "AllocatePublicIP": {
+          "Ref": "PublicIP"
+        },
+        "InstanceType": {
+          "Ref": "InstanceType"
+        },
+        "SystemDiskCategory": "cloud_ssd"
+      }
+    },
+    "Sg": {
+      "Type": "ALIYUN::ECS::SecurityGroup",
+      "Properties": {
+        "VpcId": {
+          "Ref": "Vpc"
+        },
+        "SecurityGroupName": "mysg",
+        "SecurityGroupIngress": [
+         {
+           "PortRange": "-1/-1",
+           "Priority": 1,
+           "SourceCidrIp": "0.0.0.0/0",
+           "IpProtocol": "tcp",
+           "PortRange": "22/22",
+           "NicType": "intranet"
+         },
+         {
+           "PortRange": "-1/-1",
+           "Priority": 1,
+           "SourceCidrIp": "0.0.0.0/0",
+           "IpProtocol": "tcp",
+           "PortRange": "80/80",
+           "NicType": "intranet"
+         }
+        ],
+        "SecurityGroupEgress": [
+          {
+            "PortRange": "-1/-1",
+            "Priority": 1,
+            "IpProtocol": "all",
+            "DestCidrIp": "0.0.0.0/0",
+            "NicType": "intranet"
+          }
+        ]
+      }
+    },
+    "Slb": {
+      "Type": "ALIYUN::SLB::LoadBalancer",
+      "Properties": {
+        "AddressType": {
+          "Ref": "AddressType"
+        },
+	"LoadBalancerName" : "blue",
+        "Bandwidth": {
+          "Ref": "Bandwidth"
+        },
+        "InternetChargeType": {
+          "Ref": "SLB_InternetChargeType"
+        }
+      }
+    },
+    "BackendEcs": {
+      "Properties": {
+        "BackendServers": [
+          {
+            "ServerId": {
+              "Ref": "Ecs"
+            },
+            "Weight": 100
+          }
+        ],
+        "LoadBalancerId": {
+          "Ref": "Slb"
+        }
+      },
+      "Type": "ALIYUN::SLB::BackendServerAttachment"
+    },
+    "Listener": {
+      "Type": "ALIYUN::SLB::Listener",
+      "Properties": {
+        "BackendServerPort": 80,
+        "Bandwidth": 1000,
+        "HealthCheck": {
+          "HealthyThreshold": 3,
+          "HttpCode": "http_2xx,http_3xx,http_4xx,http_5xx",
+          "Interval": 2,
+          "Timeout": 5,
+          "UnhealthyThreshold": 3,
+          "URI": "/"
+        },
+        "ListenerPort": "80",
+        "LoadBalancerId": {
+          "Ref": "Slb"
+        },
+        "Protocol": "http",
+        "Scheduler": "wrr"
+      }
+    }
+  },
+  "Outputs": {
+    "ecs_instance_id": {
+      "Value": {
+        "Fn::GetAtt": [
+          "Ecs",
+          "InstanceId"
+        ]
+      }
+    }
+  }
+}

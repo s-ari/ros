@@ -1,0 +1,139 @@
+{
+  "ROSTemplateFormatVersion": "2015-09-01",
+  "Description": "Create VPC ECS instance",
+  "Parameters": {
+    "ImageId": {
+      "Type": "String",
+      "Description": "ECS Image",
+      "Label": "ECS Image",
+      "Default": "m-6wef2xeobddwt2bb5es8"
+    },
+    "KeyPairName": {
+      "Type": "String",
+      "Description": "Key Pair Name",
+      "Label": "ECS Key Pair Name",
+      "Default": "id_rsa.pub"
+    },
+    "InstanceType": {
+      "Type": "String",
+      "Description": "ECS Instance Type",
+      "AllowedValues": [
+        "ecs.n1.medium",
+        "ecs.n1.large",
+        "ecs.n2.medium",
+        "ecs.n2.large",
+        "ecs.n4.large",
+        "ecs.n4.xlarge",
+        "ecs.mn4.large",
+        "ecs.mn4.xlarge",
+        "ecs.e4.large",
+        "ecs.cm4.xlarge",
+        "ecs.ce4.xlarge",
+        "ecs.c4.xlarge"
+      ],
+      "Label": "ECS Instance Type",
+      "Default": "ecs.n4.large"
+    },
+    "PublicIP": {
+      "Type": "Boolean",
+      "Description": "Allocate Public IP or Not",
+      "Label": "Allocate Public IP or Not",
+      "Default": true
+    },
+    "VpcId": {
+      "Type": "String",
+      "Description": "Attach VPC ID",
+      "Label": "Attach VPC ID",
+      "Default": "vpc-6wexjf56d42palffblmj4"
+    },
+    "VswitchId": {
+      "Type": "String",
+      "Description": "Attach VSwitch ID",
+      "Label": "Attach VSwitch ID",
+      "Default": "vsw-6wesawtvz11vmekszpv0z"
+    }
+  },
+  "Resources": {
+    "Ecs": {
+      "Type": "ALIYUN::ECS::Instance",
+      "Properties": {
+        "IoOptimized": "optimized",
+        "KeyPairName": {
+	  "Ref": "KeyPairName"
+	},
+        "HostName": "canary-1a",
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "canary-1a"
+          }
+        ],
+        "VpcId": {
+          "Ref": "VpcId"
+        },
+        "SecurityGroupId": {
+          "Ref": "Sg"
+        },
+        "VSwitchId": {
+          "Ref": "VswitchId"
+        },
+        "ImageId": {
+          "Ref": "ImageId"
+        },
+        "AllocatePublicIP": {
+          "Ref": "PublicIP"
+        },
+        "InstanceType": {
+          "Ref": "InstanceType"
+        },
+        "SystemDiskCategory": "cloud_ssd"
+      }
+    },
+    "Sg": {
+      "Type": "ALIYUN::ECS::SecurityGroup",
+      "Properties": {
+        "VpcId": {
+          "Ref": "VpcId"
+        },
+        "SecurityGroupName": "mysg",
+        "SecurityGroupIngress": [
+          {
+            "PortRange": "-1/-1",
+            "Priority": 1,
+            "SourceCidrIp": "0.0.0.0/0",
+            "IpProtocol": "tcp",
+            "PortRange": "22/22",
+            "NicType": "intranet"
+          },
+          {
+            "PortRange": "-1/-1",
+            "Priority": 1,
+            "SourceCidrIp": "0.0.0.0/0",
+            "IpProtocol": "tcp",
+            "PortRange": "80/80",
+            "NicType": "intranet"
+          }
+        ],
+        "SecurityGroupEgress": [
+          {
+            "PortRange": "-1/-1",
+            "Priority": 1,
+            "IpProtocol": "all",
+            "DestCidrIp": "0.0.0.0/0",
+            "NicType": "intranet"
+          }
+        ]
+      }
+    }
+  },
+  "Outputs": {
+    "ecs_instance_id": {
+      "Value": {
+        "Fn::GetAtt": [
+          "Ecs",
+          "InstanceId"
+        ]
+      }
+    }
+  }
+}
