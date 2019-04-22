@@ -6,13 +6,17 @@
       "Type": "String",
       "Description": "ECS Image",
       "Label": "ECS Image",
-      "Default": "m-6webqx6k4xw2xoxgsij2"
+      "Default": "m-6weclidw82i2iwozfgtz"
     },
-    "KeyPairName": {
+    "InstancePassword": {
+      "AllowedPattern": "[a-zA-Z0-9]*",
+      "ConstraintDescription": "Consist of alphanumeric characters",
+      "Description": "The login password of ECS instances",
+      "MaxLength": "41",
+      "MinLength": "4",
+      "NoEcho": true,
       "Type": "String",
-      "Description": "Key Pair Name",
-      "Label": "ECS Key Pair Name",
-      "Default": "arimas66_id_rsa"
+      "Default": "demo"
     },
     "InstanceType": {
       "Type": "String",
@@ -56,15 +60,6 @@
       "MaxValue": 1000,
       "MinValue": 1,
       "Type": "Number"
-    },
-    "SLB_InternetChargeType": {
-      "AllowedValues": [
-        "paybybandwidth",
-        "paybytraffic"
-      ],
-      "Default": "paybytraffic",
-      "Description": "The charge type of public internet SLB instance",
-      "Type": "String"
     }
   },
   "Resources": {
@@ -99,9 +94,9 @@
       "Properties": {
         "IoOptimized": "optimized",
         "PrivateIpAddress": "10.0.0.1",
-        "KeyPairName": {
-	  "Ref": "KeyPairName"
-	},
+        "Password": {
+          "Ref": "InstancePassword"
+        },
         "HostName": "demo",
         "Tags": [
           {
@@ -164,58 +159,6 @@
             "NicType": "intranet"
           }
         ]
-      }
-    },
-    "Slb": {
-      "Type": "ALIYUN::SLB::LoadBalancer",
-      "Properties": {
-        "AddressType": {
-          "Ref": "AddressType"
-        },
-	"LoadBalancerName" : "demo",
-        "Bandwidth": {
-          "Ref": "Bandwidth"
-        },
-        "InternetChargeType": {
-          "Ref": "SLB_InternetChargeType"
-        }
-      }
-    },
-    "BackendEcs": {
-      "Properties": {
-        "BackendServers": [
-          {
-            "ServerId": {
-              "Ref": "Ecs"
-            },
-            "Weight": 100
-          }
-        ],
-        "LoadBalancerId": {
-          "Ref": "Slb"
-        }
-      },
-      "Type": "ALIYUN::SLB::BackendServerAttachment"
-    },
-    "Listener": {
-      "Type": "ALIYUN::SLB::Listener",
-      "Properties": {
-        "BackendServerPort": 80,
-        "Bandwidth": 1000,
-        "HealthCheck": {
-          "HealthyThreshold": 3,
-          "HttpCode": "http_2xx,http_3xx,http_4xx,http_5xx",
-          "Interval": 2,
-          "Timeout": 5,
-          "UnhealthyThreshold": 3,
-          "URI": "/"
-        },
-        "ListenerPort": "80",
-        "LoadBalancerId": {
-          "Ref": "Slb"
-        },
-        "Protocol": "http",
-        "Scheduler": "wrr"
       }
     }
   },
